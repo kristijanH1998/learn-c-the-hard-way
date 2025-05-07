@@ -99,17 +99,19 @@ void Database_set(struct Connection *conn, int id, const char *name, const char 
         die("Already set, delete it first.");
     addr->set = 1;
     char *res = strncpy(addr->name, name, MAX_DATA);
+    addr->name[MAX_DATA-1] = '\0';
     if(!res) {
         die("Name copy failed.");
     }
     res = strncpy(addr->email, email, MAX_DATA);
+    addr->email[MAX_DATA-1] = '\0';
     if(!res) {
         die("Email copy failed.");
     }
 }
 
 void Database_get(struct Connection *conn, int id) {
-    struct Address *addr = &conn->db->rows[i];
+    struct Address *addr = &conn->db->rows[id];
     if(addr->set) {
         Address_print(addr);
     } else {
