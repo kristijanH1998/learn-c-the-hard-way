@@ -9,6 +9,7 @@ struct Address {
     int set;
     char *name;
     char *email;
+    int *year_created;
 };
 
 struct Database {
@@ -36,7 +37,7 @@ void die(const char *message, struct Connection *conn) {
 }
 
 void Address_print(struct Address *addr) {
-    printf("%d %s %s\n", addr->id, addr->name, addr->email);
+    printf("%d %s %s %d\n", addr->id, addr->name, addr->email, *(addr->year_created));
 }
 
 void Database_load(struct Connection *conn) {
@@ -54,13 +55,15 @@ void Database_load(struct Connection *conn) {
         struct Address *addr = malloc(sizeof(struct Address));
         addr->name = malloc(db->max_data);
         addr->email = malloc(db->max_data);
-        if (!addr || !addr->name || !addr->email)
+        addr->year_created = malloc(sizeof(int));
+        if (!addr || !addr->name || !addr->email || !addr->year_created)
             die("Memory allocation failed for address.", conn);
 
         fread(&addr->id, sizeof(int), 1, conn->file);
         fread(&addr->set, sizeof(int), 1, conn->file);
         fread(addr->name, sizeof(char), db->max_data, conn->file);
         fread(addr->email, sizeof(char), db->max_data, conn->file);
+        fread(addr->year_created, sizeof(int), 1, conn->file);
 
         db->rows[i] = addr;
     }
@@ -79,9 +82,10 @@ void Database_write(struct Connection *conn) {
         rc += fwrite(&addr->set, sizeof(int), 1, conn->file);
         rc += fwrite(addr->name, sizeof(char), db->max_data, conn->file);
         rc += fwrite(addr->email, sizeof(char), db->max_data, conn->file);
+        rc += fwrite(addr->year_created, sizeof(int), 1, conn->file);
     }
 
-    if (rc < 2 + db->max_rows * (2 + 2 * db->max_data / sizeof(int)))
+    if (rc < 2 + db->max_rows * (3 + 2 * db->max_data / sizeof(int)))
         die("Failed to write database.", conn);
 
     if (fflush(conn->file) == -1)
@@ -99,7 +103,8 @@ void Database_create(struct Connection *conn, int max_rows, int max_data) {
         struct Address *addr = malloc(sizeof(struct Address));
         addr->name = malloc(max_data);
         addr->email = malloc(max_data);
-        if (!addr || !addr->name || !addr->email)
+        addr->year_created = malloc(sizeof(int));
+        if (!addr || !addr->name || !addr->email || !addr->year_created)
             die("Memory allocation failed for address.", conn);
         addr->id = i;
         addr->set = 0;
@@ -107,7 +112,7 @@ void Database_create(struct Connection *conn, int max_rows, int max_data) {
     }
 }
 
-void Database_set(struct Connection *conn, int id, const char *name, const char *email) {
+void Database_set(struct Connection *conn, int id, const char *name, const char *email, int year_created) {
     struct Address *addr = conn->db->rows[id];
     if (addr->set)
         die("Already set, delete it first.", conn);
@@ -117,6 +122,9 @@ void Database_set(struct Connection *conn, int id, const char *name, const char 
     addr->name[conn->db->max_data - 1] = '\0';
     strncpy(addr->email, email, conn->db->max_data);
     addr->email[conn->db->max_data - 1] = '\0';
+    int *year = malloc(sizeof(int));
+    *year = year_created;
+    addr->year_created = year;
 }
 
 void Database_get(struct Connection *conn, int id) {
@@ -152,6 +160,7 @@ void Database_close(struct Connection *conn) {
                 if (addr) {
                     free(addr->name);
                     free(addr->email);
+                    free(addr->year_created);
                     free(addr);
                 }
             }
@@ -187,7 +196,7 @@ struct Connection *Database_open(const char *filename, char mode) {
     return conn;
 }
 
-struct Address *Address_find(struct Connection *conn, char *name, char *email, char search_by) {
+struct Address *Address_find(struct Connection *conn, char *name, char *email, int year_created, char search_by) {
     int i = 0;
     struct Address *addr = NULL;
     if(search_by == 'n') {
@@ -198,9 +207,17 @@ struct Address *Address_find(struct Connection *conn, char *name, char *email, c
                 break;
             }
         }
-    } else {
+    } else if(search_by == 'e'){
         for(i = 0; i < conn->db->max_data; i++) {
             if(strcmp(conn->db->rows[i]->email, email) == 0) {
+                addr = conn->db->rows[i];
+                Address_print(conn->db->rows[i]);
+                break;
+            }
+        }
+    } else {
+        for(i = 0; i < conn->db->max_data; i++) {
+            if(*(conn->db->rows[i]->year_created) == year_created) {
                 addr = conn->db->rows[i];
                 Address_print(conn->db->rows[i]);
                 break;
@@ -244,9 +261,9 @@ int main(int argc, char *argv[]) {
             Database_get(conn, id);
             break;
         case 's':
-            if (argc != 6)
-                die("Need id, name, email to set.", conn);
-            Database_set(conn, id, argv[4], argv[5]);
+            if (argc != 7)
+                die("Need id, name, email, year_created to set.", conn);
+            Database_set(conn, id, argv[4], argv[5], (atoi(argv[6])));
             Database_write(conn);
             break;
         case 'd':
@@ -260,15 +277,17 @@ int main(int argc, char *argv[]) {
             break;
         case 'f':
             if(argv[3][0] == 'n') {
-                Address_find(conn, argv[4], "", 'n');
+                Address_find(conn, argv[4], "", 0, 'n');
             } else if(argv[3][0] == 'e'){
-                Address_find(conn, "", argv[4], 'e');
+                Address_find(conn, "", argv[4], 0, 'e');
+            } else if(argv[3][0] == 'y') {
+                Address_find(conn, "", "", atoi(argv[4]), 'y');
             } else {
                 die("After action 'f', enter 'n' for name or 'e' for email, followed by search string.", conn);
             }
             break;
         default:
-            die("Invalid action: c=create, g=get, s=set, d=del, l=list", conn);
+            die("Invalid action: c=create, g=get, s=set, d=del, l=list, f=find", conn);
     }
 
     Database_close(conn);
