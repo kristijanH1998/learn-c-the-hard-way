@@ -187,6 +187,33 @@ struct Connection *Database_open(const char *filename, char mode) {
     return conn;
 }
 
+struct Address *Address_find(struct Connection *conn, char *name, char *email, char search_by) {
+    int i = 0;
+    struct Address *addr = NULL;
+    if(search_by == 'n') {
+        for(i = 0; i < conn->db->max_data; i++) {
+            if(strcmp(conn->db->rows[i]->name, name) == 0) {
+                addr = conn->db->rows[i];
+                Address_print(conn->db->rows[i]);
+                break;
+            }
+        }
+    } else {
+        for(i = 0; i < conn->db->max_data; i++) {
+            if(strcmp(conn->db->rows[i]->email, email) == 0) {
+                addr = conn->db->rows[i];
+                Address_print(conn->db->rows[i]);
+                break;
+            }
+        }
+    }
+    if(!addr) {
+        puts("No results found.");
+        return NULL;
+    } 
+    return addr;
+}
+
 // Main driver
 int main(int argc, char *argv[]) {
     if (argc < 3)
@@ -230,6 +257,15 @@ int main(int argc, char *argv[]) {
             break;
         case 'l':
             Database_list(conn);
+            break;
+        case 'f':
+            if(argv[3][0] == 'n') {
+                Address_find(conn, argv[4], "", 'n');
+            } else if(argv[3][0] == 'e'){
+                Address_find(conn, "", argv[4], 'e');
+            } else {
+                die("After action 'f', enter 'n' for name or 'e' for email, followed by search string.", conn);
+            }
             break;
         default:
             die("Invalid action: c=create, g=get, s=set, d=del, l=list", conn);
