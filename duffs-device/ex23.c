@@ -160,6 +160,36 @@ int main(int argc, char *argv[]) {
 
     check(rc == 1024, "Duff's device with macro failed: %d", rc);
     check(valid_copy(to2, 1024, 'x'), "Duff's device with macro failed copy.");
+
+    char src[2000] = {};
+    char dst[2000] = {};
+    start = clock();
+    memset(src, 'a', 2000);
+    end = clock();
+    cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+    printf("Time taken for memset (first): %f\n", cpu_time_used);
+    start = clock();
+    memset(dst, 'b', 2000);
+    end = clock();
+    cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+    printf("Time taken for memset (second): %f\n", cpu_time_used);
+
+    start = clock();
+    memcpy(dst, src, 2000);
+    end = clock();
+    cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+    printf("Time taken for memcpy: %f\n", cpu_time_used);
+    check(valid_copy(dst, 2000, 'a'), "memcpy failed to copy.");
+
+    memset(dst, 'b', 2000);
+
+    start = clock();
+    memmove(dst, src, 2000);
+    end = clock();
+    cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+    printf("Time taken for memmove: %f\n", cpu_time_used);
+    check(valid_copy(dst, 2000, 'a'), "memmove failed to copy.");
+
     return 0;
 error:
     return 1;
