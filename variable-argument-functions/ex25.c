@@ -8,7 +8,22 @@
 int read_string(char **out_string, int max_buffer) {
     *out_string = calloc(1, max_buffer + 1);
     check_mem(*out_string);
-    char *result = fgets(*out_string, max_buffer, stdin);
+    // char *result = fgets(*out_string, max_buffer, stdin);
+    // int buf_size = max_buffer;
+    char result[MAX_DATA];
+    int i = 0;
+    int ch;
+    while(i < (max_buffer - 1)) {
+        ch = fgetc(stdin);
+        result[i] = (char)ch;
+        *(*(out_string) + i) = (char)ch;
+        if(ch == '\n') {
+            break;
+        }
+        i++;
+    }
+    result[i] = '\0';
+    *(*(out_string) + i) = '\0';
     check(result != NULL, "Input error.");
     return 0;
 error:
@@ -86,6 +101,8 @@ int main(int argc, char *argv[]) {
 
     printf("What's your first name? ");
     int rc = read_scan("%s", MAX_DATA, &first_name);
+    // int rc = read_scan("%s", &first_name);
+    // int rc = read_scan("%s", MAX_DATA + 10, &first_name);
     check(rc == 0, "Failed first name.");
 
     printf("What's your initial? ");
@@ -94,6 +111,8 @@ int main(int argc, char *argv[]) {
 
     printf("What's your last name? ");
     rc = read_scan("%s", MAX_DATA, &last_name);
+    // rc = read_scan("%s", &last_name);
+    // rc = read_scan("%s", MAX_DATA + 10, &last_name);
     check(rc == 0, "Failed last name.");
 
     printf("How old are you? ");
@@ -101,9 +120,9 @@ int main(int argc, char *argv[]) {
     check(rc == 0, "Failed to read age.");
     
     printf("----RESULTS----\n");
-    printf("First Name: %s", first_name);
+    printf("First Name: %s\n", first_name);
     printf("Initial: '%c'\n", initial);
-    printf("Last Name: %s", last_name);
+    printf("Last Name: %s\n", last_name);
     printf("Age: %d\n", age);
     
     free(first_name);
